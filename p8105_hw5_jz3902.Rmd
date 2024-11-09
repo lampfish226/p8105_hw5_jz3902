@@ -117,9 +117,47 @@ t_repeat_result =
     output = map(true_mean, \(x) t_sim(true_mean = x))
     ) %>% 
   unnest(output)
-
-
 ```
 
+```{r power_mean}
+t_repeat_result %>% 
+  group_by(true_mean) %>% 
+  summarize(reject_prob = mean(reject_or_not)) %>% 
+  ggplot(aes(x = true_mean, y = reject_prob)) +
+  geom_line() +
+  scale_x_continuous(breaks = 1:6)+
+  labs(
+    title = "Power vs True mean",
+    x = "True mean",
+    y = "Power of the test",
+    caption = "The proportion of times the null was rejected (the power of the test).")
+```
+
+As the true mean increases, the number of rejections of the null hypothesis increases, that is, the power of the test increases and approaches 1.
+
+```{r sample_true_mean}
+t_repeat_result %>% 
+  group_by(true_mean) %>% 
+  summarize(avg_estimate = mean(estimate),
+            avg_rej_estimate = mean(estimate[reject_or_not == TRUE])) %>% 
+  ggplot() +
+  geom_line(aes(x = true_mean, y = avg_estimate, color = "line1")) +
+  geom_line(aes(x = true_mean, y = avg_rej_estimate, color = "line2")) +
+  scale_x_continuous(breaks = 1:6) +
+  labs(
+    title = "Sample mean vs True mean",
+    x = "True mean",
+    y = "Average sample mean",
+    color = "Type"
+    ) +
+  scale_color_manual(
+    values = c("line1" = "blue", "line2" = "red"),                 
+    labels = c("Average of all sample mean",
+               "Average of sample mean for which the null is rejected")  
+  )
+```
+
+* When the true mean $\mu$ is small, the average of sample mean $\hat{\mu}$ for which the null is rejected **is not equal to** the true value of $\mu$. This is because $\mu$ is close to the null hypothesis, so the generated datasets will have a greater probability of having $\hat{\mu}$ close to the null hypothesis. If the null hypothesis is rejected, $\hat{\mu}$ needs to be far enough away from the null hypothesis (and $\mu$ that is close to it).
+* Similarly, as $\mu$ increases, the proportion of all samples that reject the null hypothesis increases, and the average of $\hat{\mu}$ that reject the null hypothesis will get closer and closer to $\mu$ **until they are equal**.
 
 
