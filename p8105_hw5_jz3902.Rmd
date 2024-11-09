@@ -26,6 +26,8 @@ scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
 
+
+
 ## Problem 1
 
 ```{r bdays_function}
@@ -41,7 +43,7 @@ bdays_sim = function(n){
 ```
 
 ```{r bdays_sim}
-sim_result = 
+bdays_sim_result = 
   expand_grid(
     n = 2:50,
     iter = 1:10000
@@ -50,7 +52,7 @@ sim_result =
   group_by(n) %>% 
   summarize(prob = mean(result))
 
-sim_result %>% 
+bdays_sim_result %>% 
   ggplot(aes(x = n, y = prob)) +
   geom_line() +
   labs(
@@ -61,3 +63,63 @@ sim_result %>%
 ```
 
 After 10,000 simulations for each group size, the plot of probability vs group size is close to a curve. When the group size exceeds 23, the probability that at least two people in the group will share the same birthday becomes greater than 50%.
+
+
+## Problem 2
+
+### Function
+
+```{r t_test_function}
+t_sim = function(samp_size = 30, true_mean, true_sd = 5) {
+  
+  sim_df = 
+    tibble(
+    x = rnorm(samp_size, true_mean, true_sd)
+  )
+  
+  out_df = 
+    sim_df %>% 
+    t.test() %>% 
+    broom::tidy() %>% 
+    select(estimate, p.value) %>% 
+    mutate(reject_or_not = p.value < 0.05)
+    
+  return(out_df)
+  
+}
+```
+
+### For $\mu = 0$
+
+```{r mu0_result}
+t_mu0_result = 
+  expand_grid(
+    true_mean = 0,
+    iter = 1:5000
+    ) %>% 
+  mutate(
+    output = map(true_mean, \(x) t_sim(true_mean = x))
+    ) %>% 
+  unnest(output)
+
+head(t_mu0_result)
+```
+
+### For $\mu = {1,2,3,4,5,6}$
+
+```{r repeat_result}
+t_repeat_result = 
+  expand_grid(
+    true_mean = c(1:6),
+    iter = 1:5000
+    ) %>% 
+  mutate(
+    output = map(true_mean, \(x) t_sim(true_mean = x))
+    ) %>% 
+  unnest(output)
+
+
+```
+
+
+
