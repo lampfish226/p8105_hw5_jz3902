@@ -180,8 +180,9 @@ head(homicide_df)
 summarize_homi_df = 
 homicide_df %>%
   group_by(city_state) %>% 
+  distinct(uid, disposition) %>% 
   summarize(
-    total_homi = n_distinct(uid),
+    total_homi = n(),
     unsolved_homi = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
   )
 
