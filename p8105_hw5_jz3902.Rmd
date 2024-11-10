@@ -10,7 +10,7 @@ library(tidyverse)
 
 knitr::opts_chunk$set(
   fig.width = 6,
-  fig.asp = .6,
+  fig.asp = .8,
   out.width = "90%",
   warning = FALSE
 )
@@ -62,7 +62,7 @@ bdays_sim_result %>%
     caption = "The probability that at least two people in the group will share a birthday.")
 ```
 
-After 10,000 simulations for each group size, the plot of probability vs group size is close to a curve. When the group size exceeds 23, the probability that at least two people in the group will share the same birthday becomes greater than 50%.
+* After 10,000 simulations for each group size, the plot of probability vs group size is close to a curve. When the group size exceeds 23, the probability that at least two people in the group will share the same birthday becomes greater than 50%.
 
 
 ## Problem 2
@@ -133,7 +133,7 @@ t_repeat_result %>%
     caption = "The proportion of times the null was rejected (the power of the test).")
 ```
 
-As the true mean increases, the number of rejections of the null hypothesis increases, that is, the power of the test increases and approaches 1.
+* As the true mean increases, the number of rejections of the null hypothesis increases, that is, the power of the test increases and approaches 1.
 
 ```{r sample_true_mean}
 t_repeat_result %>% 
@@ -148,7 +148,7 @@ t_repeat_result %>%
     title = "Sample mean vs True mean",
     x = "True mean",
     y = "Average sample mean",
-    color = "Type"
+    color = " "
     ) +
   scale_color_manual(
     values = c("line1" = "blue", "line2" = "red"),                 
@@ -158,6 +158,95 @@ t_repeat_result %>%
 ```
 
 * When the true mean $\mu$ is small, the average of sample mean $\hat{\mu}$ for which the null is rejected **is not equal to** the true value of $\mu$. This is because $\mu$ is close to the null hypothesis, so the generated datasets will have a greater probability of having $\hat{\mu}$ close to the null hypothesis. If the null hypothesis is rejected, $\hat{\mu}$ needs to be far enough away from the null hypothesis (and $\mu$ that is close to it).
+
 * Similarly, as $\mu$ increases, the proportion of all samples that reject the null hypothesis increases, and the average of $\hat{\mu}$ that reject the null hypothesis will get closer and closer to $\mu$ **until they are equal**.
 
 
+## Problem 3
+
+```{r import_homicide, message = FALSE}
+homicide_df = 
+  read_csv("data/homicide-data.csv") %>% 
+  mutate(city_state = str_c(city, state, sep = ", "))
+
+head(homicide_df)
+```
+
+* There are `r nrow(homicide_df)` observations and `r ncol(homicide_df)` variables in the homicide dataset.
+
+### Summarize
+
+```{r summarize_homicide}
+summarize_homi_df = 
+homicide_df %>%
+  group_by(city_state) %>% 
+  summarize(
+    total_homi = n_distinct(uid),
+    unsolved_homi = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
+  )
+
+head(summarize_homi_df)
+```
+
+
+### Unsolved homicide in Baltimore
+
+```{r baltimore}
+prop_test_baltimore = 
+  summarize_homi_df %>% 
+  filter(city_state == "Baltimore, MD") %>%
+  { prop.test(x = .$unsolved_homi, n = .$total_homi) }
+
+prop_test_baltimore %>% 
+  broom::tidy() %>% 
+  select(estimate, conf.low, conf.high)
+```
+
+* This is the table of estimated proportion and confidence interval of unsolved homicides in Baltimore, MD.
+
+### Repeat for each city
+
+```{r each_city}
+test_city = function(homi_info) {
+  
+  out_df = 
+  homi_info %>% 
+    { prop.test(x = .$unsolved_homi, n = .$total_homi) } %>% 
+    broom::tidy() %>% 
+    select(estimate, conf.low, conf.high)
+  
+  return(out_df)
+  
+}
+
+homi_prop_df = 
+  summarize_homi_df %>%
+  nest(data = total_homi:unsolved_homi) %>% 
+  mutate(
+    test_result = map(data, \(x) test_city(homi_info = x))
+    ) %>% 
+  select(-data) %>% 
+  unnest(test_result)
+
+head(homi_prop_df)
+```
+
+* This is part of the table for the proportion of unsolved homicides in each city.
+
+```{r homi_plot}
+homi_prop_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate, color = city_state)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1)) +
+  labs(
+    title = "Proportion of unsolved homicides in each city",
+    x = "City",
+    y = "Estimate of proportion",
+    caption = "The proportion of unsolved homicides and the confidence interval for each city."
+    )
+```
+
+* For the city of Tulsa, AL, there is only one homicide for which the disposition is "Closed by arrest" (i.e. solved). Therefore, the proportion of unsolved homicides is estimated zero and the CI is wide due to lack of information.
